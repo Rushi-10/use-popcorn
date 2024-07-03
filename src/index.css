@@ -140,6 +140,7 @@ body {
   padding: 0.8rem 0;
   overflow: auto;
 }
+.box::-webkit-scrollbar, .list::-webkit-scrollbar {   display: none;   scroll-behavior: smooth; }
 
 .list-watched {
   height: calc(100% - 9rem);
