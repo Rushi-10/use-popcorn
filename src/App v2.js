@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import StarRating from "./StarRating";
 import {useMovies } from "./useMovies";
+import { useLocalStorageState } from "./useLocalStorageState";
 
 const tempMovieData = [
   {
@@ -56,18 +57,9 @@ export default function App() {
   const [query, setQuery] = useState("inception");
   const [selectedId, setSelectedId] = useState(null);
   const{movies,isLoading,error}=useMovies(query,onCloseMovie);
-  const [watched, setWatched] = useState(function () {
-    const storedData = localStorage.getItem("watched");
-    return JSON.parse(storedData);
-  });
+  const[watched,setWatched]=useLocalStorageState([],"watched");
 
-  //useEffect hook for storing watched movies in local storage.
-  useEffect(
-    function () {
-      localStorage.setItem("watched", JSON.stringify(watched));
-    },
-    [watched]
-  );
+
 
   
 
