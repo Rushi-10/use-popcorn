@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import StarRating from "./StarRating";
 
 const tempMovieData = [
@@ -55,46 +55,62 @@ const key="f84fc31d";
 export default function App() {
   const [query, setQuery] = useState("inception");
   const [movies, setMovies] = useState([]);
-  const [watched, setWatched] = useState([]);
-  const[isLoading,setIsLoading]=useState(false);
-  const[error,setError]=useState("");
-  const[selectedId,setSelectedId]=useState(null);
-  
-  useEffect(function () {
-    const controller=new AbortController();
-    async function fetchMovies() {
-      try{
-      setIsLoading(true);
-      const res = await fetch(`http://www.omdbapi.com/?apikey=${key}&
-s=${query}`,{signal:controller.signal});
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [selectedId, setSelectedId] = useState(null);
+  const [watched, setWatched] = useState(function () {
+    const storedData = localStorage.getItem("watched");
 
-     if(!res.ok) throw new Error("Something wrong with fetching movies");
-      const data = await res.json();
-      
-     if(data.Response==="False") throw new Error("Movie Not Found");
-      setMovies(data.Search);
-      setError("");
+    return JSON.parse(storedData);
+  });
+
+  //useEffect hook for storing watched movies in local storage.
+  useEffect(
+    function () {
+      localStorage.setItem("watched", JSON.stringify(watched));
+    },
+    [watched]
+  );
+
+  useEffect(
+    function () {
+      const controller = new AbortController();
+      async function fetchMovies() {
+        try {
+          setIsLoading(true);
+          const res = await fetch(
+            `http://www.omdbapi.com/?apikey=${key}&
+s=${query}`,
+            { signal: controller.signal }
+          );
+
+          if (!res.ok) throw new Error("Something wrong with fetching movies");
+          const data = await res.json();
+
+          if (data.Response === "False") throw new Error("Movie Not Found");
+          setMovies(data.Search);
+          setError("");
+        } catch (err) {
+          if (err.name !== "AbortError") {
+            setError(err.message);
+          }
+        } finally {
+          setIsLoading(false);
+        }
       }
-      catch(err){
-        if(err.name!=="AbortError"){
-        setError(err.message);
+      if (query.length < 3) {
+        setMovies([]);
+        setError("");
+        return;
       }
-    }
-      finally{
-        setIsLoading(false);
-      }
-    }
-    if(query.length<3){
-      setMovies([]);
-      setError("");
-      return;
-    }
-    onCloseMovie();
-    fetchMovies(); 
-    return function(){
-     controller.abort();
-    };
-  }, [query]);
+      onCloseMovie();
+      fetchMovies();
+      return function () {
+        controller.abort();
+      };
+    },
+    [query]
+  );
 
   function onSelectMovie(id) {
     setSelectedId((selectedId) => (selectedId === id ? null : id));
@@ -104,35 +120,48 @@ s=${query}`,{signal:controller.signal});
     setSelectedId(null);
   }
 
-  function onAddWatchedMovie(newMovie){
-    setWatched((watched)=>[...watched,newMovie]);
+  function onAddWatchedMovie(newMovie) {
+    setWatched((watched) => [...watched, newMovie]);
   }
 
-  function handleDeleteWatched(id){
-    setWatched(watched.filter((movie)=>movie.imdbID!==id));
+  function handleDeleteWatched(id) {
+    setWatched(watched.filter((movie) => movie.imdbID !== id));
   }
+
   return (
     <>
       <Navbar>
-        <Logo/>
-        <Search query={query} setQuery={setQuery}/>
-        <NumResults movies={movies}/>
-      </Navbar> 
-     <Main>
-      <Box>
-      {isLoading&&<Loading/>}
-      {!isLoading && !error &&<MovieList movies={movies} onSelectMovie={onSelectMovie}/>}
-      {error && <ErrorMessage message={error}/>}
-      </Box>
-      <Box>
-      {selectedId?<MovieDetails selectedId={selectedId} onCloseMovie={onCloseMovie} onAddWatchedMovie={onAddWatchedMovie} watched={watched}/>:
-      <>
-        <WatchedSummary watched={watched}/>
-        <WatchedMovieList watched={watched} onDeleteWatchedMovie={handleDeleteWatched}/>
-        </>
-  }
-      </Box>
-     </Main>
+        <Logo />
+        <Search query={query} setQuery={setQuery} />
+        <NumResults movies={movies} />
+      </Navbar>
+      <Main>
+        <Box>
+          {isLoading && <Loading />}
+          {!isLoading && !error && (
+            <MovieList movies={movies} onSelectMovie={onSelectMovie} />
+          )}
+          {error && <ErrorMessage message={error} />}
+        </Box>
+        <Box>
+          {selectedId ? (
+            <MovieDetails
+              selectedId={selectedId}
+              onCloseMovie={onCloseMovie}
+              onAddWatchedMovie={onAddWatchedMovie}
+              watched={watched}
+            />
+          ) : (
+            <>
+              <WatchedSummary watched={watched} />
+              <WatchedMovieList
+                watched={watched}
+                onDeleteWatchedMovie={handleDeleteWatched}
+              />
+            </>
+          )}
+        </Box>
+      </Main>
     </>
   );
 }
@@ -169,6 +198,21 @@ return(
 }
 
 function Search({query,setQuery}){
+const inputEl=useRef(null);
+
+useEffect(function(){
+  function callback(e){
+    if(document.activeElement===inputEl.current)
+      return;
+    if(e.code==="Enter"){
+      inputEl.current.focus();
+      setQuery("");
+    }
+  }
+  document.addEventListener("keydown",callback);
+  return ()=>document.removeEventListener("keydown",callback);
+
+},[setQuery]);
 
 return(
 <input
@@ -177,6 +221,7 @@ return(
           placeholder="Search movies..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          ref={inputEl}
         />
 );
 }
@@ -305,6 +350,8 @@ return function(){
   document.title="usePopcorn";
 }
   },[title]);
+
+ 
   return (
     <div className="details">
       {isLoading ? (
@@ -397,11 +444,11 @@ return(
                   </p>
                   <p>
                     <span>⭐️</span>
-                    <span>{avgImdbRating}</span>
+                    <span>{avgImdbRating.toFixed(2)}</span>
                   </p>
                   <p>
                     <span>🌟</span>
-                    <span>{avgUserRating}</span>
+                    <span>{avgUserRating.toFixed(2)}</span>
                   </p>
                   <p>
                     <span>⏳</span>
