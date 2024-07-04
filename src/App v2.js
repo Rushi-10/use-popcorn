@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import StarRating from "./StarRating";
 import {useMovies } from "./useMovies";
 import { useLocalStorageState } from "./useLocalStorageState";
+import { useKey } from "./useKey";
 
 const tempMovieData = [
   {
@@ -53,6 +54,7 @@ const tempWatchedData = [
 const average = (arr) =>
   arr.reduce((acc, cur, i, arr) => acc + cur / arr.length, 0);
  const key="f84fc31d";
+
 export default function App() {
   const [query, setQuery] = useState("inception");
   const [selectedId, setSelectedId] = useState(null);
@@ -150,6 +152,11 @@ return(
 
 function Search({query,setQuery}){
 const inputEl=useRef(null);
+useKey("Enter",function(){
+  if(document.activeElement===inputEl.current) return;
+  inputEl.current.focus();
+  setQuery("");
+ });
 
 useEffect(function(){
   function callback(e){
@@ -277,17 +284,7 @@ i=${selectedId}`);
     [selectedId]
   );
 //Escape event handler
-  useEffect(function(){
-function callback(e){
-  if(e.code==="Escape"){
-    onCloseMovie();
-  }
-}
-document.addEventListener("keydown",callback);
-return function(){
-  document.removeEventListener("keydown",callback);
-}
-  },[onCloseMovie]);
+ 
 
   const isWatched = watched.map((movie) => movie.imdbID).includes(selectedId);
   const watchedUserRating = watched.find(
